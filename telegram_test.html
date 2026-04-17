@@ -1,0 +1,146 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Nunito',sans-serif;background:#f4f6f4;max-width:430px;margin:0 auto;padding:16px}
+.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:14px;border:1px solid #e4ebe4}
+.btn{width:100%;padding:13px;border-radius:13px;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;border:none;cursor:pointer;margin-top:8px}
+.result{border-radius:12px;padding:14px;margin-top:10px;font-size:13px;font-weight:700;line-height:1.6;min-height:60px}
+.flabel{font-size:10px;font-weight:800;color:#7a8a7a;letter-spacing:0.5px;margin-bottom:4px;display:block;margin-top:10px}
+.finput{width:100%;height:40px;border:1.5px solid #e4ebe4;border-radius:11px;background:#fafafa;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;color:#1a1a1a;padding:0 12px;outline:none}
+.finput:focus{border-color:#1DB954;background:#fff}
+pre{background:#f4f6f4;border-radius:10px;padding:10px;font-size:11px;overflow-x:auto;margin-top:8px;white-space:pre-wrap;word-break:break-all}
+</style>
+
+<div class="card">
+  <div style="font-size:15px;font-weight:800;margin-bottom:4px">🤖 Telegram Connection Test</div>
+  <div style="font-size:12px;color:#7a8a7a;font-weight:700">Bot: @Mohan_fitness_bot · Chat: Mohankumar</div>
+
+  <label class="flabel">BOT TOKEN</label>
+  <input class="finput" id="tok" value="8370355052:AAG-scM6GNkAiH5WdkfB0kTgfqQKtps2IBU">
+
+  <label class="flabel">CHAT ID</label>
+  <input class="finput" id="cid" value="1003795565">
+
+  <label class="flabel">TEST MESSAGE</label>
+  <input class="finput" id="tmsg" value="FitTrack Pro connected! Hourly reminders ready.">
+
+  <button class="btn" style="background:#1a2e1a;color:#fff" onclick="step1()">Step 1 — Verify Bot Token</button>
+  <button class="btn" style="background:#3498db;color:#fff" onclick="step2()">Step 2 — Send Test Message</button>
+  <button class="btn" style="background:#1DB954;color:#fff" onclick="step3()">Step 3 — Send Full Reminder</button>
+
+  <div class="result" id="result" style="background:#f5f5f5;color:#999">Tap Step 1 to begin verification...</div>
+  <pre id="raw" style="display:none"></pre>
+</div>
+
+<div class="card">
+  <div style="font-size:14px;font-weight:800;margin-bottom:10px">📋 Troubleshooting Checklist</div>
+  <div id="checks"></div>
+</div>
+
+<script>
+var checks=[
+  {id:'c1',label:'Bot token format valid (starts with numbers:AAG...)',done:false},
+  {id:'c2',label:'Bot responds to /getMe API call',done:false},
+  {id:'c3',label:'Chat ID is correct number',done:false},
+  {id:'c4',label:'You have sent /start to the bot',done:false},
+  {id:'c5',label:'Message delivered successfully',done:false},
+];
+
+function renderChecks(){
+  var el=document.getElementById('checks');
+  el.innerHTML=checks.map(function(c){
+    var color=c.done===true?'#1DB954':c.done===false?'#e74c3c':'#7a8a7a';
+    var icon=c.done===true?'✅':c.done==='pending'?'⏳':'⬜';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #e4ebe4;font-size:12px;font-weight:700"><span>'+icon+'</span><span style="color:'+color+'">'+c.label+'</span></div>';
+  }).join('');
+}
+
+function setResult(msg,color,raw){
+  var r=document.getElementById('result');
+  r.textContent=msg;r.style.background=color==='green'?'#e8f8ee':color==='red'?'#fff0f0':color==='blue'?'#e8f4fc':'#fff8e6';
+  r.style.color=color==='green'?'#0e8c3a':color==='red'?'#c0392b':color==='blue'?'#1a6fa0':'#c07800';
+  if(raw){document.getElementById('raw').style.display='block';document.getElementById('raw').textContent=JSON.stringify(raw,null,2);}
+  else{document.getElementById('raw').style.display='none';}
+}
+
+function step1(){
+  var tok=document.getElementById('tok').value.trim();
+  checks[0].done='pending';renderChecks();
+  setResult('⏳ Verifying bot token...','blue',null);
+  var parts=tok.split(':');
+  if(parts.length!==2||isNaN(parts[0])){
+    checks[0].done=false;renderChecks();
+    setResult('❌ Token format looks wrong. Should be: 1234567890:AAF_something','red',null);
+    return;
+  }
+  fetch('https://api.telegram.org/bot'+tok+'/getMe')
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(d.ok){
+      checks[0].done=true;checks[1].done=true;renderChecks();
+      setResult('✅ Bot verified! Bot name: '+d.result.first_name+' (@'+d.result.username+')','green',d);
+    } else {
+      checks[0].done=false;checks[1].done=false;renderChecks();
+      setResult('❌ Invalid token: '+d.description,'red',d);
+    }
+  })
+  .catch(function(e){
+    checks[0].done=false;renderChecks();
+    setResult('❌ Network error: '+e.message+'\n\nTry disabling VPN or try on mobile data.','red',null);
+  });
+}
+
+function step2(){
+  var tok=document.getElementById('tok').value.trim();
+  var cid=document.getElementById('cid').value.trim();
+  var msg=document.getElementById('tmsg').value.trim();
+  checks[2].done='pending';checks[3].done='pending';renderChecks();
+  setResult('⏳ Sending message to chat ID '+cid+'...','blue',null);
+  fetch('https://api.telegram.org/bot'+tok+'/sendMessage',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({chat_id:parseInt(cid),text:'🔔 '+msg+'\n\nFrom: FitTrack Pro',parse_mode:'HTML'})
+  })
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(d.ok){
+      checks[2].done=true;checks[3].done=true;checks[4].done=true;renderChecks();
+      setResult('✅ Message delivered to Mohankumar!\n\nCheck your Telegram — you should see the message from @Mohan_fitness_bot right now!','green',d);
+    } else {
+      checks[2].done=false;renderChecks();
+      var hint='';
+      if(d.description&&d.description.indexOf('chat not found')>=0){hint='\n\n👉 Fix: Open Telegram, search @Mohan_fitness_bot and press START first!';}
+      else if(d.description&&d.description.indexOf('blocked')>=0){hint='\n\n👉 Fix: You may have blocked the bot. Unblock it in Telegram.';}
+      setResult('❌ Failed: '+d.description+hint,'red',d);
+    }
+  })
+  .catch(function(e){
+    setResult('❌ Network error: '+e.message,'red',null);
+  });
+}
+
+function step3(){
+  var tok=document.getElementById('tok').value.trim();
+  var cid=document.getElementById('cid').value.trim();
+  var fullMsg='⏰ <b>FitTrack Hourly Reminder</b>\n\nHey Mohankumar! 🏃 Time for your 10-minute activity break!\n\n• 💪 20 Push-ups\n• 🎗 100 Skips\n• 🦵 20 Squats\n• 🏅 10 Pull-ups\n\n💪 Stay consistent — you\'ve got this!\n\n— FitTrack Pro 🏃';
+  setResult('⏳ Sending full activity reminder...','blue',null);
+  fetch('https://api.telegram.org/bot'+tok+'/sendMessage',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({chat_id:parseInt(cid),text:fullMsg,parse_mode:'HTML'})
+  })
+  .then(function(r){return r.json();})
+  .then(function(d){
+    if(d.ok){
+      checks[4].done=true;renderChecks();
+      setResult('✅ Full activity reminder sent to Telegram!\n\nCheck @Mohan_fitness_bot — your reminder is there! This is exactly what you will receive every hour from 9AM to 6PM 🎉','green',d);
+    } else {
+      setResult('❌ Failed: '+d.description,'red',d);
+    }
+  })
+  .catch(function(e){setResult('❌ Error: '+e.message,'red',null);});
+}
+
+renderChecks();
+</script>
