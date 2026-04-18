@@ -1,0 +1,76 @@
+function doPost(e) {
+  try {
+    var sheet = SpreadsheetApp
+      .getActiveSpreadsheet()
+      .getActiveSheet();
+    
+    var data = JSON.parse(e.postData.contents);
+    
+    // Add headers if sheet is empty
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow([
+        'Date', 'Steps', 'Skipping', 'Push-ups',
+        'Pull-ups', 'Squats', 'Strength Sets',
+        'Activity Cal', 'Diet Cal', 'Protein (g)',
+        'Carbs (g)', 'Fat (g)', 'Water (L)',
+        'Sleep (h)', 'Sleep Quality', 'Weight (kg)'
+      ]);
+    }
+    
+    // Check if row for today exists — update it
+    var lastRow = sheet.getLastRow();
+    var rowToUpdate = -1;
+    if (lastRow > 1) {
+      var dates = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (var i = 0; i < dates.length; i++) {
+        if (dates[i][0] === data.date) {
+          rowToUpdate = i + 2;
+          break;
+        }
+      }
+    }
+    
+    var row = [
+      data.date,
+      data.steps,
+      data.skipping,
+      data.pushups,
+      data.pullups,
+      data.squats,
+      data.strSets,
+      data.actCal,
+      data.dietCal,
+      data.protein,
+      data.carbs,
+      data.fat,
+      data.water,
+      data.sleep,
+      data.sleepQ,
+      data.weight || ''
+    ];
+    
+    if (rowToUpdate > 0) {
+      sheet.getRange(rowToUpdate, 1, 1, row.length).setValues([row]);
+    } else {
+      sheet.appendRow(row);
+    }
+    
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: 'success' }))
+      .setMimeType(ContentService.MimeType.JSON);
+      
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ 
+        status: 'error', 
+        message: err.toString() 
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  return ContentService
+    .createTextOutput('FitTrack webhook is active!')
+    .setMimeType(ContentService.MimeType.TEXT);
+}
